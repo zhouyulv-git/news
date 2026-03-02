@@ -17,7 +17,7 @@ RSS_FEEDS = {
 }
 
 # 邮箱配置 (从环境变量获取，保护隐私)
-SMTP_SERVER = "smtp.qq.com"  # 如果用163邮箱，改为 smtp.163.com
+SMTP_SERVER = "smtp.163.com"  # 如果用163邮箱，改为 smtp.163.com
 SMTP_PORT = 465 # SSL端口
 SENDER_EMAIL = os.environ.get("SMTP_USER")     # 发件人邮箱
 SENDER_PASSWORD = os.environ.get("SMTP_PASS")  # 邮箱授权码
@@ -85,4 +85,5 @@ if __name__ == "__main__":
     print("开始抓取新闻...")
     news_content = get_latest_news()
     print("开始发送邮件...")
+
     send_email(news_content)
