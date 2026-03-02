@@ -5,8 +5,10 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 import pytz
 import os
+import ssl
+from bs4 import BeautifulSoup
 
-# 配置区：你想采集的IT网站RSS源
+# 1. 配置区
 RSS_FEEDS = {
     "V2EX 最热主题": "https://www.v2ex.com/index.xml",
     "掘金前端": "https://juejin.cn/rss?sort=three_days_newest",
@@ -16,84 +18,98 @@ RSS_FEEDS = {
     "Hacker News (英文)": "https://news.ycombinator.com/rss"
 }
 
-# 邮箱配置 (从环境变量获取，保护隐私)
-SMTP_SERVER = "smtp.163.com"  # 如果用163邮箱，改为 smtp.163.com
-SMTP_PORT = 587 # SSL端口
-SENDER_EMAIL = os.environ.get("SMTP_USER")     # 发件人邮箱
-SENDER_PASSWORD = os.environ.get("SMTP_PASS")  # 邮箱授权码
-RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL") # 收件人邮箱（可以是同一个）
+# 2. 邮箱配置 (Gmail)
+SMTP_SERVER = "smtp.gmail.com"  
+SMTP_PORT = 465                 
+SENDER_EMAIL = os.environ.get("SMTP_USER")     
+SENDER_PASSWORD = os.environ.get("SMTP_PASS")  
+RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL") 
+
+def clean_html_to_text(html_content):
+    """把网页源代码清洗成纯粹的文字，去掉所有链接和标签"""
+    if not html_content:
+        return ""
+    # 使用 BeautifulSoup 解析并提取纯文本
+    soup = BeautifulSoup(html_content, "html.parser")
+    text = soup.get_text(separator=" ", strip=True)
+    
+    # 如果正文太长，截取前 150 个字（防止邮件被撑爆）
+    if len(text) > 150:
+        text = text[:150] + "..."
+    return text
 
 def get_latest_news():
-    """获取过去24小时内的新闻"""
-    # 设置时区为北京时间
+    """获取新闻标题和正文纯文本"""
     tz = pytz.timezone('Asia/Shanghai')
     now = datetime.now(tz)
     yesterday = now - timedelta(days=1)
     
-    html_content = "<h2>每日 IT 资讯精选</h2>"
+    html_content = "<h2 style='text-align:center; color:#2c3e50;'>每日 IT 资讯精选 (深度纯净版)</h2>"
     
     for site_name, url in RSS_FEEDS.items():
         try:
             feed = feedparser.parse(url)
-            html_content += f"<h3>[{site_name}]</h3><ul>"
+            html_content += f"<h3 style='background-color:#f0f2f5; padding:8px; border-left:4px solid #3498db;'>[{site_name}]</h3><ul style='list-style-type:none; padding-left:0;'>"
             
             count = 0
             for entry in feed.entries:
-                # 解析文章发布时间
                 if hasattr(entry, 'published_parsed') and entry.published_parsed:
-                    # 转换时间格式
                     pub_time = datetime(*entry.published_parsed[:6], tzinfo=pytz.utc).astimezone(tz)
                     
-                    # 只筛选最近24小时的文章
                     if pub_time > yesterday:
-                        html_content += f"<li><a href='{entry.link}'>{entry.title}</a> <span style='color:gray;font-size:12px;'>({pub_time.strftime('%H:%M')})</span></li>"
+                        # 提取文章的正文/摘要
+                        article_text = ""
+                        if hasattr(entry, 'summary'):
+                            article_text = clean_html_to_text(entry.summary)
+                        elif hasattr(entry, 'description'):
+                            article_text = clean_html_to_text(entry.description)
+                            
+                        # 排版：标题加粗，正文灰色缩小
+                        html_content += f"<li style='margin-bottom: 20px; border-bottom: 1px dashed #e0e0e0; padding-bottom: 10px;'>"
+                        html_content += f"<div style='margin-bottom: 5px;'><strong style='color:#222; font-size:16px;'>{entry.title}</strong> <span style='color:#999; font-size:12px;'>({pub_time.strftime('%H:%M')})</span></div>"
+                        
+                        # 如果有正文，则显示正文
+                        if article_text:
+                            html_content += f"<div style='color:#666; font-size:14px; line-height:1.6;'>{article_text}</div>"
+                        else:
+                            html_content += f"<div style='color:#ccc; font-size:12px;'>(无正文内容)</div>"
+                            
+                        html_content += "</li>"
                         count += 1
-                
-                # 每个网站最多提取10条，防止邮件过长
-                if count >= 10:
+                        
+                # 考虑到带正文比较长，每个网站最多取 5 篇即可
+                if count >= 5:
                     break
                     
             if count == 0:
-                html_content += "<li>今日暂无更新</li>"
-            html_content += "</ul><hr>"
+                html_content += "<li style='color:#999;'>今日暂无更新</li>"
+            html_content += "</ul>"
             
         except Exception as e:
-            html_content += f"<p>抓取 {site_name} 失败: {str(e)}</p><hr>"
+            html_content += f"<p style='color:red;'>抓取 {site_name} 失败: {str(e)}</p>"
             
     return html_content
 
 def send_email(content):
-    """发送 HTML 邮件（终极排错版）"""
-    import smtplib
-    import ssl
-    import traceback
-    
+    """发送纯文本无链接邮件"""
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = RECEIVER_EMAIL
-    msg['Subject'] = f"🚀 每日 IT 资讯速递 - {datetime.now().strftime('%Y-%m-%d')}"
-    
+    msg['Subject'] = f"🚀 每日 IT 资讯深度速递 - {datetime.now().strftime('%Y-%m-%d')}"
     msg.attach(MIMEText(content, 'html', 'utf-8'))
     
     try:
-        print(f"1. 准备连接服务器: {SMTP_SERVER} ...")
-        # 创建安全的 SSL 上下文（防止因为证书问题被踢）
         context = ssl.create_default_context()
-        
-        # 强制设置 10 秒超时，使用 465 端口
-        server = smtplib.SMTP_SSL(SMTP_SERVER, 465, context=context, timeout=10)
-        server.set_debuglevel(1) # 强制开启底层日志
-        
-        print("2. 服务器连接成功，准备核对密码...")
+        server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context)
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        
-        print("3. 密码核对通过，正在发送...")
         server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
         server.quit()
         print("🎉 邮件发送成功！请查收。")
-        
     except Exception as e:
-        print("\n❌ 邮件发送失败！详细诊断日志如下：")
-        traceback.print_exc() # 打印出极其详细的红字报错
+        print(f"❌ 邮件发送失败: {e}")
 
-
+if __name__ == "__main__":
+    print("开始抓取新闻与正文...")
+    news_content = get_latest_news()
+    print("开始发送邮件...")
+    send_email(news_content)
