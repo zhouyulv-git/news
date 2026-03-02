@@ -98,32 +98,41 @@ def get_latest_news():
     return html_content
 
 def send_email(content):
-    import requests
     import os
+    import requests
     from datetime import datetime
 
-    api_key = os.getenv("RESEND_API_KEY")
+    API_KEY = os.getenv("RESEND_API_KEY")
+    RECEIVER = os.getenv("RECEIVER_EMAIL")
+
+    if not API_KEY:
+        print("❌ 未配置 RESEND_API_KEY")
+        return
 
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
 
-    data = {
+    payload = {
         "from": "Daily IT <onboarding@resend.dev>",
-        "to": [os.getenv("RECEIVER_EMAIL")],
+        "to": [RECEIVER],
         "subject": f"💻 每日 IT 与硬件前沿速递 - {datetime.now().strftime('%Y-%m-%d')}",
         "html": content
     }
 
-    r = requests.post(
-        "https://api.resend.com/emails",
-        headers=headers,
-        json=data,
-        timeout=30
-    )
+    try:
+        r = requests.post(
+            "https://api.resend.com/emails",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
 
-    if r.status_code == 200:
-        print("🎉 邮件发送成功")
-    else:
-        print("❌ 发送失败:", r.text)
+        if r.status_code in (200, 201):
+            print("🎉 邮件发送成功")
+        else:
+            print("❌ 邮件发送失败:", r.text)
+
+    except Exception as e:
+        print("❌ 请求失败:", e)
