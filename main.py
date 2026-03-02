@@ -63,7 +63,11 @@ def get_latest_news():
     return html_content
 
 def send_email(content):
-    """发送 HTML 邮件"""
+    """发送 HTML 邮件（终极排错版）"""
+    import smtplib
+    import ssl
+    import traceback
+    
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = RECEIVER_EMAIL
@@ -72,24 +76,24 @@ def send_email(content):
     msg.attach(MIMEText(content, 'html', 'utf-8'))
     
     try:
-        # 使用 SSL 连接 SMTP 服务器
-       server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.set_debuglevel(1) # 开启详细日志，方便排错
-        server.ehlo()
-        server.starttls() # 启动安全传输
-        server.ehlo()
+        print(f"1. 准备连接服务器: {SMTP_SERVER} ...")
+        # 创建安全的 SSL 上下文（防止因为证书问题被踢）
+        context = ssl.create_default_context()
         
+        # 强制设置 10 秒超时，使用 465 端口
+        server = smtplib.SMTP_SSL(SMTP_SERVER, 465, context=context, timeout=10)
+        server.set_debuglevel(1) # 强制开启底层日志
+        
+        print("2. 服务器连接成功，准备核对密码...")
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        
+        print("3. 密码核对通过，正在发送...")
         server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
         server.quit()
-        print("邮件发送成功！")
+        print("🎉 邮件发送成功！请查收。")
+        
     except Exception as e:
-        print(f"邮件发送失败: {e}")
+        print("\n❌ 邮件发送失败！详细诊断日志如下：")
+        traceback.print_exc() # 打印出极其详细的红字报错
 
-if __name__ == "__main__":
-    print("开始抓取新闻...")
-    news_content = get_latest_news()
-    print("开始发送邮件...")
-
-    send_email(news_content)
 
