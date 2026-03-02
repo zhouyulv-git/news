@@ -24,10 +24,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run Scraper and Send Email
+    - name: Run Scraper and Send Email using Resend API
       env:
-        SMTP_USER: ${{ secrets.SMTP_USER }}
-        SMTP_PASS: ${{ secrets.SMTP_PASS }}
-        RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
+        RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}  # 使用 Resend API Key
+        RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}  # 收件人的邮箱地址
       run: |
         python main.py
