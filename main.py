@@ -23,9 +23,47 @@ RSS_FEEDS = {
     "博客园": "https://feed.cnblogs.com/blog/sitehome/rss",
     "InfoQ 架构": "https://www.infoq.cn/feed"
 }
+import os
+import requests
+from datetime import datetime
+
 # ===== Resend 配置 =====
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
+
+def send_email(content):
+    if not RESEND_API_KEY:
+        print("❌ 未读取到 RESEND_API_KEY")
+        return
+    if not RECEIVER_EMAIL:
+        print("❌ 未读取到 RECEIVER_EMAIL")
+        return
+
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Authorization": f"Bearer {RESEND_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "from": "Daily News <zhouyulv@gmail.com>",  # 用你的 Resend 注册邮箱
+        "to": [RECEIVER_EMAIL],
+        "subject": f"每日 IT 与硬件前沿速递 - {datetime.now().strftime('%Y-%m-%d')}",
+        "html": content
+    }
+
+    try:
+        print("🚀 正在发送邮件...")
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        print("HTTP 状态码:", response.status_code)
+        print("返回内容:", response.text)
+        response.raise_for_status()
+        print("🎉 邮件发送成功")
+    except requests.exceptions.ConnectionError:
+        print("❌ 网络连接异常或被阻断")
+    except requests.exceptions.Timeout:
+        print("❌ 请求超时")
+    except Exception as e:
+        print("❌ 未知错误:", e)
 
 def clean_html_to_text(html_content):
     """把网页源代码清洗成纯粹的文字，去掉所有链接、图片和标签"""
@@ -159,3 +197,4 @@ def send_email(content):
 
     except Exception as e:
         print("❌ 未知错误:", e)
+
