@@ -97,11 +97,16 @@ def get_latest_news():
             
     return html_content
 
-def send_email(content):
-    import os
-    import requests
-    from datetime import datetime
+import requests
+import os
+from datetime import datetime
 
+import requests
+import os
+from datetime import datetime
+
+def send_email(content):
+    """使用 Resend API 发送邮件"""
     API_KEY = os.getenv("RESEND_API_KEY")
     RECEIVER = os.getenv("RECEIVER_EMAIL")
 
@@ -115,7 +120,7 @@ def send_email(content):
     }
 
     payload = {
-        "from": "Daily IT <onboarding@resend.dev>",
+        "from": "Daily IT <onboarding@resend.dev>",  # 可以修改为你的发件人邮箱
         "to": [RECEIVER],
         "subject": f"💻 每日 IT 与硬件前沿速递 - {datetime.now().strftime('%Y-%m-%d')}",
         "html": content
