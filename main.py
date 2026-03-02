@@ -18,7 +18,7 @@ RSS_FEEDS = {
 
 # 邮箱配置 (从环境变量获取，保护隐私)
 SMTP_SERVER = "smtp.163.com"  # 如果用163邮箱，改为 smtp.163.com
-SMTP_PORT = 465 # SSL端口
+SMTP_PORT = 587 # SSL端口
 SENDER_EMAIL = os.environ.get("SMTP_USER")     # 发件人邮箱
 SENDER_PASSWORD = os.environ.get("SMTP_PASS")  # 邮箱授权码
 RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL") # 收件人邮箱（可以是同一个）
@@ -73,7 +73,12 @@ def send_email(content):
     
     try:
         # 使用 SSL 连接 SMTP 服务器
-        server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
+       server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.set_debuglevel(1) # 开启详细日志，方便排错
+        server.ehlo()
+        server.starttls() # 启动安全传输
+        server.ehlo()
+        
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
         server.quit()
@@ -87,3 +92,4 @@ if __name__ == "__main__":
     print("开始发送邮件...")
 
     send_email(news_content)
+
