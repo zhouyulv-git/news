@@ -98,72 +98,32 @@ def get_latest_news():
     return html_content
 
 def send_email(content):
-    import smtplib
-    import socket
-    import traceback
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
+    import requests
+    import os
     from datetime import datetime
 
-    try:
-        if not SENDER_EMAIL or not SENDER_PASSWORD:
-            print("❌ 未读取到邮箱配置")
-            return False
+    api_key = os.getenv("RESEND_API_KEY")
 
-        sender = SENDER_EMAIL.strip()
-        password = SENDER_PASSWORD.strip()
-        receiver = RECEIVER_EMAIL.strip()
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
 
-        # ===== 构建邮件 =====
-        msg = MIMEMultipart()
-        msg["From"] = sender
-        msg["To"] = receiver
-        msg["Subject"] = f"💻 每日 IT 与硬件前沿速递 - {datetime.now().strftime('%Y-%m-%d')}"
+    data = {
+        "from": "Daily IT <onboarding@resend.dev>",
+        "to": [os.getenv("RECEIVER_EMAIL")],
+        "subject": f"💻 每日 IT 与硬件前沿速递 - {datetime.now().strftime('%Y-%m-%d')}",
+        "html": content
+    }
 
-        msg.attach(MIMEText(content, "html", "utf-8"))
+    r = requests.post(
+        "https://api.resend.com/emails",
+        headers=headers,
+        json=data,
+        timeout=30
+    )
 
-        print("📡 正在连接 Gmail SMTP...")
-
-        socket.setdefaulttimeout(30)
-
-        # ✅ 改为 587 + STARTTLS
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-
-        server.set_debuglevel(1)
-
-        # ===== SMTP握手 =====
-        server.ehlo()
-
-        print("🔐 启动 TLS 加密")
-        server.starttls()
-
-        server.ehlo()
-
-        # ===== 登录 =====
-        print("🔑 登录邮箱")
-        server.login(sender, password)
-
-        # ===== 发送 =====
-        print("📨 发送邮件")
-        server.sendmail(
-            sender,
-            [receiver],   # ✅ 必须 list
-            msg.as_string()
-        )
-
-        server.quit()
-
+    if r.status_code == 200:
         print("🎉 邮件发送成功")
-        return True
-
-    except smtplib.SMTPAuthenticationError:
-        print("❌ 登录失败：请使用 Gmail 应用专用密码")
-
-    except smtplib.SMTPServerDisconnected:
-        print("❌ SMTP服务器断开（Gmail风控或密码错误）")
-
-    except Exception:
-        print("❌ 邮件发送失败：")
-        traceback.print_exc()
-
-    return False
+    else:
+        print("❌ 发送失败:", r.text)
