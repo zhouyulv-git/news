@@ -23,13 +23,9 @@ RSS_FEEDS = {
     "博客园": "https://feed.cnblogs.com/blog/sitehome/rss",
     "InfoQ 架构": "https://www.infoq.cn/feed"
 }
-
-# 2. 邮箱配置 (Gmail)
-SMTP_SERVER = "smtp.gmail.com"  
-SMTP_PORT = 465                 
-SENDER_EMAIL = os.environ.get("SMTP_USER")     
-SENDER_PASSWORD = os.environ.get("SMTP_PASS")  
-RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL") 
+# ===== Resend 配置 =====
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
 
 def clean_html_to_text(html_content):
     """把网页源代码清洗成纯粹的文字，去掉所有链接、图片和标签"""
@@ -110,13 +106,18 @@ import os
 from datetime import datetime
 
 def send_email(content):
-    print("✅ 使用 Resend API 发送邮件")
+    print("📧 使用 Resend API 发送邮件")
 
     API_KEY = os.getenv("RESEND_API_KEY")
     RECEIVER = os.getenv("RECEIVER_EMAIL")
 
-    print("API KEY 是否存在:", bool(API_KEY))
-    print("接收邮箱:", RECEIVER)
+    if not API_KEY:
+        print("❌ RESEND_API_KEY 未读取到")
+        return
+
+    if not RECEIVER:
+        print("❌ RECEIVER_EMAIL 未读取到")
+        return
 
     url = "https://api.resend.com/emails"
 
@@ -128,28 +129,33 @@ def send_email(content):
     payload = {
         "from": "Daily News <onboarding@resend.dev>",
         "to": [RECEIVER],
-        "subject": f"测试邮件 {datetime.now()}",
+        "subject": f"每日 IT 资讯 - {datetime.now().strftime('%Y-%m-%d')}",
         "html": content
     }
 
     try:
-        print("🚀 正在请求 Resend API...")
+        print("🚀 请求 Resend API...")
 
         response = requests.post(
             url,
             headers=headers,
             json=payload,
-            timeout=30
+            timeout=20
         )
 
-        print("状态码:", response.status_code)
-        print("返回内容:", response.text)
+        print("HTTP状态:", response.status_code)
+        print("返回:", response.text)
 
-        response.raise_for_status()
+        if response.status_code == 200:
+            print("✅ 邮件发送成功")
+        else:
+            print("❌ Resend 返回异常")
 
-        print("🎉 邮件发送成功")
+    except requests.exceptions.Timeout:
+        print("❌ 请求超时")
+
+    except requests.exceptions.ConnectionError:
+        print("❌ 网络连接被关闭（GitHub Runner 网络问题）")
 
     except Exception as e:
-        print("❌ Resend 发送异常:")
-        print(type(e))
-        print(e)
+        print("❌ 未知错误:", e)
