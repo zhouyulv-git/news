@@ -105,14 +105,20 @@ import requests
 import os
 from datetime import datetime
 
+import requests
+import os
+from datetime import datetime
+
 def send_email(content):
-    """使用 Resend API 发送邮件"""
+    print("✅ 使用 Resend API 发送邮件")
+
     API_KEY = os.getenv("RESEND_API_KEY")
     RECEIVER = os.getenv("RECEIVER_EMAIL")
 
-    if not API_KEY:
-        print("❌ 未配置 RESEND_API_KEY")
-        return
+    print("API KEY 是否存在:", bool(API_KEY))
+    print("接收邮箱:", RECEIVER)
+
+    url = "https://api.resend.com/emails"
 
     headers = {
         "Authorization": f"Bearer {API_KEY}",
@@ -120,24 +126,30 @@ def send_email(content):
     }
 
     payload = {
-        "from": "Daily IT <onboarding@resend.dev>",  # 可以修改为你的发件人邮箱
+        "from": "Daily News <onboarding@resend.dev>",
         "to": [RECEIVER],
-        "subject": f"💻 每日 IT 与硬件前沿速递 - {datetime.now().strftime('%Y-%m-%d')}",
+        "subject": f"测试邮件 {datetime.now()}",
         "html": content
     }
 
     try:
-        r = requests.post(
-            "https://api.resend.com/emails",
+        print("🚀 正在请求 Resend API...")
+
+        response = requests.post(
+            url,
             headers=headers,
             json=payload,
             timeout=30
         )
 
-        if r.status_code in (200, 201):
-            print("🎉 邮件发送成功")
-        else:
-            print("❌ 邮件发送失败:", r.text)
+        print("状态码:", response.status_code)
+        print("返回内容:", response.text)
+
+        response.raise_for_status()
+
+        print("🎉 邮件发送成功")
 
     except Exception as e:
-        print("❌ 请求失败:", e)
+        print("❌ Resend 发送异常:")
+        print(type(e))
+        print(e)
