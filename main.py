@@ -103,7 +103,7 @@ def send_email(content):
         "Content-Type": "application/json"
     }
     payload = {
-        "from": "Daily News <onboarding@resend.dev>",  # 请使用你的 Resend 注册邮箱
+        "from": "Daily News <zhouyulv@gmail.com>",  # 请使用你的 Resend 注册邮箱
         "to": [RECEIVER_EMAIL],
         "subject": f"每日 IT 与硬件前沿速递 - {datetime.now().strftime('%Y-%m-%d')}",
         "html": content
@@ -127,3 +127,4 @@ if __name__ == "__main__":
     news_content = get_latest_news()
     print("开始发送邮件...")
     send_email(news_content)
+
