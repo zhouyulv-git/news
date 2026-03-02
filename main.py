@@ -98,7 +98,15 @@ def get_latest_news():
     return html_content
 
 def send_email(content):
-    """发送纯文本无链接邮件"""
+    import smtplib
+    import ssl
+    import traceback
+    
+    # 1. 账号密码读取检查（防止 Secrets 没配置好）
+    if not SENDER_EMAIL or not SENDER_PASSWORD:
+        print("❌ 严重错误：读取不到邮箱或密码！请检查 GitHub Secrets 中的 SMTP_USER 和 SMTP_PASS 是否配置正确。")
+        return
+        
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = RECEIVER_EMAIL
@@ -106,17 +114,28 @@ def send_email(content):
     msg.attach(MIMEText(content, 'html', 'utf-8'))
     
     try:
-        context = ssl.create_default_context()
-        server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context)
+        print(f"正在尝试连接 {SMTP_SERVER} 的 587 端口...")
+        # 2. 改用 587 端口 + STARTTLS 加密 (Gmail 官方推荐的另一种稳定方式)
+        server = smtplib.SMTP(SMTP_SERVER, 587, timeout=15)
+        server.set_debuglevel(1)  # 强制开启超级详细的底层网络日志
+        
+        server.ehlo()
+        server.starttls(context=ssl.create_default_context()) # 启动安全加密传输
+        server.ehlo()
+        
+        print(f"服务器连接成功，准备登录账号: {SENDER_EMAIL} ...")
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        
+        print("登录成功！正在发送邮件...")
         server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
         server.quit()
         print("🎉 邮件发送成功！请查收。")
+        
     except Exception as e:
-        print(f"❌ 邮件发送失败: {e}")
-
-if __name__ == "__main__":
+        print("\n❌ 邮件发送失败！详细诊断日志如下：")
+        traceback.print_exc() # 打印红色的详细报错追踪代码
     print("开始抓取新闻与正文...")
     news_content = get_latest_news()
     print("开始发送邮件...")
     send_email(news_content)
+
